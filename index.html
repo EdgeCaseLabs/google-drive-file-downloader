@@ -1,0 +1,114 @@
+<html>
+  <head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+    <script type="text/javascript">
+      var CLIENT_ID = '<<ENTER CLIENT ID HERE>>';
+      var SCOPES = [
+          'https://www.googleapis.com/auth/drive.file',
+        ];
+
+      //TODO: this never gets called for some reason
+      /**
+       * Called when the client library is loaded.
+       */
+      //function handleClientLoad() {
+      //  checkAuth();
+      //}
+
+      var auth_callback = function(){};
+      /**
+       * Check if the current user has authorized the application.
+       */
+      function checkAuth(callback) {
+        gapi.auth.authorize(
+            {'client_id': CLIENT_ID, 'scope': SCOPES.join(' '), 'immediate': true},
+            handleAuthResult);
+        auth_callback = callback;
+      }
+
+      /**
+       * Called when authorization server replies.
+       *
+       * @param {Object} authResult Authorization result.
+       */
+      function handleAuthResult(authResult) {
+        if (authResult) {
+          // Access token has been successfully retrieved, requests can be sent to the API
+          
+          /**
+           * Load the Drive API client.
+           * @param {Function} callback Function to call when the client is loaded.
+           */
+          gapi.client.load('drive', 'v2', 
+            function(){
+              //alert('Authorized and loaded!'); 
+              auth_callback();
+            });
+
+        } else {
+          // No access token could be retrieved, force the authorization flow.
+          gapi.auth.authorize(
+              {'client_id': CLIENT_ID, 'scope': SCOPES, 'immediate': false},
+              handleAuthResult);
+        }
+      }
+
+
+      /**
+       * Print a file's metadata.
+       *
+       * @param {String} fileId ID of the file to print metadata for.
+       */
+      function downloadFiles() {
+        checkAuth(function(){
+          
+
+          var fileIds = $("#fileIds").val();
+          var _fileIds = fileIds.split("\n");
+          for(var i = 0; i < _fileIds.length; i++){
+            _fileIds[i] = _fileIds[i].replace("https://docs.google.com/open?id=","");
+            console.log(_fileIds[i]);
+          }
+
+          if(confirm("Are you sure you want to download " + _fileIds.length + " files?")){
+
+            for(var i = 0; i < _fileIds.length; i++){
+              var request = gapi.client.drive.files.get({
+                  'fileId': _fileIds[i]
+              });
+              request.execute(function(resp) {
+                if (!resp.error) {
+                  console.log(resp);
+                  downloadURL(resp.webContentLink);
+                } else if (resp.error.code == 401) {
+                  // Access token might have expired.
+                  checkAuth();
+                } else {
+                  console.log('An error occured: ' + resp.error.message);
+                }
+              });
+            }
+
+          }
+
+
+
+        });
+        
+      }
+
+      function downloadURL(url) {
+          var $idown = $('<iframe>', { id:'idown', src:url }).hide().appendTo('body');
+      }
+      
+    </script>
+  </head>
+  <body>
+
+    <textarea id="fileIds" cols="100" rows="20"></textarea>
+    <br/>
+    <button id="go" onclick="downloadFiles();">Go!</button>
+
+  </body>
+</html>
